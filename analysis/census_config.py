@@ -31,3 +31,11 @@ COUNTRIES = {
     "5380": "Bangladesh", "5420": "Sri Lanka", "5350": "Pakistan",
 }
 RAW_DIR = "data/raw/census"
+MONTHLY_DIR = "data/raw/census/monthly_files"   # one small file per month, district and country
+
+# Customs districts (Census Schedule D codes) grouped by coast. Inland and border districts are left out
+# because their routing is unclear. Gulf is its own group; decide later whether to merge it with East.
+EAST_COAST = {"04": "Boston", "10": "New York", "11": "Philadelphia", "13": "Baltimore", "14": "Norfolk",
+              "15": "Wilmington NC", "16": "Charleston", "17": "Savannah", "18": "Tampa", "52": "Miami"}
+GULF_COAST = {"19": "Mobile", "20": "New Orleans", "53": "Houston Galveston"}
+WEST_COAST = {"25": "San Diego", "27": "Los Angeles", "28": "San Francisco", "29": "Columbia Snake", "30": "Seattle"}

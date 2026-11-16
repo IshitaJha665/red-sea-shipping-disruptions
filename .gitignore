@@ -16,3 +16,5 @@ data/raw/Transpacific Data Containers.xlsx
 data/raw/Container_Shipping_Data.xlsx
 data/raw/Monthly_transits.xlsx
 data/cleaned/transits_monthly_clean.csv
+# Monthly Census pull files stay on this computer; the combined tables in data/cleaned are what gets shared
+data/raw/census/monthly_files/

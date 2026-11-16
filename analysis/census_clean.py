@@ -9,7 +9,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import census_config as C
 
-raw = os.environ.get("CENSUS_RAW_DIR", C.RAW_DIR)
+raw = os.environ.get("CENSUS_RAW_DIR", C.MONTHLY_DIR)
 out = os.environ.get("CENSUS_OUT_DIR", "data/cleaned")
 os.makedirs(out, exist_ok=True)
 M = C.MEASURES

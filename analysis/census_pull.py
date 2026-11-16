@@ -4,6 +4,9 @@ Usage (from the repo root):
   export CENSUS_API_KEY=your_key
   python3 -I analysis/census_pull.py --test      # one month, one country, prints the head
   python3 -I analysis/census_pull.py             # full pull, safe to rerun, skips finished files
+  python3 -I analysis/census_pull.py --from 2023-11 --to 2023-11 --countries 5700 --districts 27   # one district, one month
+  python3 -I analysis/census_pull.py --from 2022-01 --to 2024-12 --countries 5700 --districts coasts --workers 4   # East, Gulf, West ports
+  python3 -I analysis/census_pull.py --from 2023-11 --to 2024-02 --countries 5700 --national   # a few months, China only, national totals (much smaller request)
 """
 import csv, json, os, sys, time, urllib.parse, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,10 +26,10 @@ def months(a, b):
             y, m = y + 1, 1
 
 
-def fetch(month, cty):
+def fetch(month, cty, district="*"):
     fields = [C.COMMODITY_VAR, C.COUNTRY_VAR, C.DISTRICT_VAR] + list(C.MEASURES.values())
     q = {"get": ",".join(fields), "time": month, C.COMM_LEVEL_PARAM: C.COMM_LEVEL,
-         C.COUNTRY_VAR: cty, C.COMMODITY_VAR: "*", C.DISTRICT_VAR: "*", "key": key}
+         C.COUNTRY_VAR: cty, C.COMMODITY_VAR: "*", C.DISTRICT_VAR: "-" if "--national" in sys.argv else district, "key": key}
     url = C.BASE_URL + "?" + urllib.parse.urlencode(q, safe=",*")
     for attempt in range(4):
         try:
@@ -39,21 +42,58 @@ def fetch(month, cty):
     return None
 
 
-os.makedirs(C.RAW_DIR, exist_ok=True)
+os.makedirs(C.MONTHLY_DIR, exist_ok=True)
 test = "--test" in sys.argv
-todo = [("2023-10", "5700")] if test else [(m, c) for m in months(C.START_MONTH, C.END_MONTH) for c in C.COUNTRIES]
-for month, cty in todo:
-    path = os.path.join(C.RAW_DIR, f"hs4_{cty}_{month}.csv")
+def arg(name):
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else None
+
+
+# Optional: --from 2023-11 --to 2024-02 --countries 5700,5830 limits the full pull
+a, b = arg("--from") or C.START_MONTH, arg("--to") or C.END_MONTH
+ctys = arg("--countries").split(",") if arg("--countries") else list(C.COUNTRIES)
+# --districts 27,10 (or --districts coasts) pulls one small file per district, month and country
+dsel = arg("--districts")
+if dsel == "coasts":
+    dists = list(C.EAST_COAST) + list(C.GULF_COAST) + list(C.WEST_COAST)
+elif dsel:
+    dists = dsel.split(",")
+else:
+    dists = None
+span = "--span" in sys.argv   # one request per district covering the whole --from to --to range
+if test:
+    todo = [("2023-10", "5700", "*")]
+elif dists and span:
+    todo = [(f"from {a} to {b}", c, d) for c in ctys for d in dists]
+elif dists:
+    todo = [(m, c, d) for m in months(a, b) for c in ctys for d in dists]
+else:
+    todo = [(m, c, "*") for m in months(a, b) for c in ctys]
+def one(job):
+    month, cty, dist = job
+    tag = f"_d{dist}" if dist != "*" else ""
+    path = os.path.join(C.MONTHLY_DIR, f"hs4_{cty}{tag}_{month.replace('from ', '').replace(' to ', '_to_')}.csv")
     if os.path.exists(path) and not test:
-        continue
-    rows = fetch(month, cty)
+        return
+    rows = fetch(month, cty, dist)
     if rows is None:
-        print("FAILED", month, cty); continue
+        print("FAILED", month, cty, dist, flush=True); return
     if test:
         print(len(rows), "rows"); [print(r) for r in rows[:5]]
         if "--save" not in sys.argv:
-            break
+            return
     with open(path, "w", newline="") as f:
         csv.writer(f).writerows(rows)
-    print("saved", path, len(rows) - 1 if rows else 0, "rows")
-    time.sleep(0.3)
+    print("saved", path, len(rows) - 1 if rows else 0, "rows", flush=True)
+
+
+# --span asks for all months of a district in one request (fewer, bigger requests).
+# --workers 4 sends several requests at once (default 1). Rerun after any FAILED line.
+workers = int(arg("--workers") or 1)
+if workers > 1 and not test:
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(one, todo))
+else:
+    for job in todo:
+        one(job)
+        time.sleep(0.3)
