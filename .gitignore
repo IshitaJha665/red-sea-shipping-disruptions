@@ -1,0 +1,18 @@
+.DS_Store
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.toc
+*.bbl
+*.blg
+__pycache__/
+*.numbers
+# Clarksons data is licensed: keep raw Clarksons files out of a public repo
+data/raw/Container Transit Data.xlsx
+data/raw/Transpacific Data Containers.xlsx
+data/raw/Container_Shipping_Data.xlsx
+data/raw/Monthly_transits.xlsx
+data/cleaned/transits_monthly_clean.csv
